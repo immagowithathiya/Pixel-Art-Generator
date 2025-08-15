@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pixel Art Generator</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🎨 Pixel Art Generator</h1>
+            <p class="subtitle">
+                K-means Clustering • Floyd-Steinberg Dithering • Real-time Visualization
+            </p>
+        </header>
+
+        <div class="main-grid">
+            <!-- CONTROLS -->
+            <div class="controls">
+                <div class="control-group">
+                    <label>📁 Upload Image</label>
+                    <div class="file-input-wrapper">
+                        <input type="file" id="imageUpload" accept="image/*">
+                        <label for="imageUpload" class="file-input-label">Choose Image</label>
+                    </div>
+                    <small class="hint" id="imageInfo"></small>
+                </div>
+
+                <div class="control-group">
+                    <label class="checkbox-group">
+                        <input type="checkbox" id="heavyProcessingMode">
+                        <span>🧠 Heavy Processing Mode</span>
+                    </label>
+                    <small class="hint">
+                        Unlocks higher quality settings for better results on large images.<br>
+                        <strong>Max colors: 128</strong> | <strong>Min pixel size: 1x</strong>
+                    </small>
+                </div>
+
+                <div class="control-group">
+                    <label>
+                        📐 Preview Downscale:
+                        <span class="slider-value" id="previewScaleValue">100%</span>
+                    </label>
+                    <input type="range" id="previewScale" min="10" max="100" step="5" value="100">
+                    <small class="hint" id="previewScaleHint">
+                        Controls preview canvas size only. Lower = faster rendering.
+                    </small>
+                    <div class="dimension-display" id="previewDimensions" style="display: none;">
+                        <strong>Preview:</strong> <span id="previewDimText">-</span>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label>
+                        🖼️ Output Downscale:
+                        <span class="slider-value" id="outputScaleValue">100%</span>
+                    </label>
+                    <input type="range" id="outputScale" min="10" max="100" step="5" value="100">
+                    <small class="hint" id="outputScaleHint">
+                        Controls processing resolution. Lower = faster processing, smaller output.
+                    </small>
+                    <div class="dimension-display" id="outputDimensions" style="display: none;">
+                        <strong>Output:</strong> <span id="outputDimText">-</span>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label>
+                        🎨 Number of Colors:
+                        <span class="slider-value" id="colorValue">16</span>
+                    </label>
+                    <input type="range" id="colorCount" min="2" max="32" value="16">
+                    <small class="hint" id="colorHint">Switch to heavy mode for more colors</small>
+                </div>
+
+                <div class="control-group">
+                    <label>
+                        🔳 Pixel Size:
+                        <span class="slider-value" id="pixelValue">1x</span>
+                    </label>
+                    <input type="range" id="pixelSize" min="1" max="16" value="1">
+                    <small class="hint" id="pixelHint">Auto-adjusted for large images</small>
+                </div>
+
+                <div class="control-group">
+                    <label>✨ Dithering Algorithm</label>
+                    <select id="ditherAlgo">
+                        <option value="floyd">Floyd-Steinberg (Classic)</option>
+                        <option value="jarvis">Jarvis-Judice-Ninke</option>
+                        <option value="stucki">Stucki</option>
+                        <option value="none">None (Nearest Color)</option>
+                    </select>
+                </div>
+
+                <div class="control-group">
+                    <label class="checkbox-group">
+                        <input type="checkbox" id="showViz" checked>
+                        <span>Show Algorithm Visualization</span>
+                    </label>
+                </div>
+
+                <div class="control-group">
+                    <button id="processBtn" disabled>⚡ Process Image</button>
+                </div>
+
+                <div class="control-group">
+                    <button id="downloadBtn" class="download-btn" disabled>
+                        💾 Download Options
+                    </button>
+                    <div class="export-options" id="exportOptions">
+                        <button onclick="downloadImage(1)">📥 Download 1x</button>
+                        <button onclick="downloadImage(2)">📥 Download 2x</button>
+                        <button onclick="downloadImage(4)">📥 Download 4x</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- CONTENT -->
+            <div class="content-section">
+                <div class="processing" id="processing">
+                    <div class="spinner"></div>
+                    <p id="processingText">Initializing...</p>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progressFill"></div>
+                    </div>
+                </div>
+
+                <div class="visualizer-section" id="visualizerSection" style="display:none;">
+                    <h2>🔬 Algorithm Visualization</h2>
+
+                    <div class="visualizer-grid">
+                        <div class="viz-card">
+                            <h3>Generated Color Palette</h3>
+                            <div id="colorPaletteViz"></div>
+                        </div>
+
+                        <div class="viz-card">
+                            <h3>Color Space Clustering</h3>
+                            <canvas id="clusterViz"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- STATS -->
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-value" id="statColors">0</div>
+                            <div class="stat-label">Colors Used</div>
+                        </div>
+
+                        <div class="stat-card">
+                            <div class="stat-value" id="statIterations">0</div>
+                            <div class="stat-label">K-means Iterations</div>
+                        </div>
+
+                        <div class="stat-card">
+                            <div class="stat-value" id="statPixels">0</div>
+                            <div class="stat-label">Pixels Processed</div>
+                        </div>
+
+                        <div class="stat-card">
+                            <div class="stat-value" id="statTime">0ms</div>
+                            <div class="stat-label">Processing Time</div>
+                        </div>
+
+                        <div class="stat-card">
+                            <div class="stat-value" id="statPerfTime">0ms</div>
+                            <div class="stat-label">Algorithm Compute Time</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- COMPARISON -->
+                <div class="canvas-container">
+                    <h2>🖼️ Interactive Comparison</h2>
+                    <div class="comparison-wrapper">
+                        <div class="comparison-container" id="comparisonContainer">
+                            <canvas id="originalCanvas"></canvas>
+                            <canvas id="processedCanvas"></canvas>
+                            <div class="comparison-slider" id="comparisonSlider"></div>
+                        </div>
+                        <div class="comparison-labels">
+                            <span>← Original</span>
+                            <span>Pixel Art →</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- INFO -->
+        <div class="info-section">
+            <h2>📚 About This Project</h2>
+            <p>
+                This pixel art generator demonstrates client-side computer graphics
+                algorithms with explicit performance instrumentation and asynchronous
+                processing using Web Workers.
+            </p>
+            <p>
+                <strong>Heavy Processing Mode:</strong> Enables higher quality output for large images
+                by allowing up to 128 colors and finer pixel granularity. Use this mode when you want
+                the best possible quality and don't mind longer processing times.
+            </p>
+            <p>
+                <strong>Output Resolution Control:</strong> Set to 0 for automatic (preserves original resolution),
+                or specify a custom maximum dimension. The actual processing happens at the pixel size you select,
+                then upscales to the output resolution.
+            </p>
+        </div>
+    </div>
+
+    <!-- SCRIPT ORDER (IMPORTANT) -->
+    <script src="js/algorithms.js"></script>
+    <script src="js/visualization.js"></script>
+    <script src="js/comparison.js"></script>
+    <script src="js/performance.js"></script>
+    <script src="js/imageProcessor.js"></script>
+    <script src="js/main.js"></script>
+</body>
+</html>
